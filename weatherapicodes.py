@@ -1,0 +1,308 @@
+import json
+import boto3
+import os
+import urllib.request
+from datetime import datetime
+
+# AWS clients
+dynamodb = boto3.resource('dynamodb')
+s3 = boto3.client('s3')
+
+# Environment variables
+WEATHER_API_KEY = os.environ.get('apikey', 'e376b9e9d54f4014b3b61506251004')
+DYNAMODB_TABLE = os.environ.get('DYNAMODB_TABLE', 'weatherdata')
+S3_BUCKET = os.environ.get('S3_BUCKET', 'weatheradii')
+
+# List of multiple locations to fetch
+LOCATIONS = ['Bangalore', 'Kolkata', 'Mumbai', 'kochi', 'Chennai']
+
+# DynamoDB table
+table = dynamodb.Table(DYNAMODB_TABLE)
+
+def lambda_handler(event, context):                
+    try:
+        results = []
+
+        for location in LOCATIONS:
+            weather_api_url = f'http://api.weatherapi.com/v1/current.json?key={WEATHER_API_KEY}&q={location}'
+            print(f"Fetching weather for {location}...")
+
+            with urllib.request.urlopen(weather_api_url) as response:                    # Open URL connection
+                weather_data = json.loads(response.read().decode())                      # Parse the JSON response
+
+            timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")                      # Generate a UTC timestamp
+
+            item = {
+                'location_name': weather_data['location']['name'],
+                'localtime': weather_data['location']['localtime'],
+                'region': weather_data['location']['region'],
+                'country': weather_data['location']['country'],
+                'latitude': str(weather_data['location']['lat']),
+                'longitude': str(weather_data['location']['lon']),
+                'timezone': weather_data['location']['tz_id'],
+                'temp_c': str(weather_data['current']['temp_c']),
+                'temp_f': str(weather_data['current']['temp_f']),
+                'is_day': str(weather_data['current']['is_day']),
+                'condition_text': weather_data['current']['condition']['text'],
+                'condition_icon': weather_data['current']['condition']['icon'],
+                'condition_code': str(weather_data['current']['condition']['code']),
+                'wind_mph': str(weather_data['current']['wind_mph']),
+                'wind_kph': str(weather_data['current']['wind_kph']),
+                'wind_degree': str(weather_data['current']['wind_degree']),
+                'wind_dir': weather_data['current']['wind_dir'],
+                'pressure_mb': str(weather_data['current']['pressure_mb']),
+                'pressure_in': str(weather_data['current']['pressure_in']),
+                'precip_mm': str(weather_data['current']['precip_mm']),
+                'precip_in': str(weather_data['current']['precip_in']),
+                'humidity': str(weather_data['current']['humidity']),
+                'cloud': str(weather_data['current']['cloud']),
+                'feelslike_c': str(weather_data['current']['feelslike_c']),
+                'feelslike_f': str(weather_data['current']['feelslike_f']),
+                'windchill_c': str(weather_data['current'].get('windchill_c', 0)),
+                'windchill_f': str(weather_data['current'].get('windchill_f', 0)),
+                'heatindex_c': str(weather_data['current'].get('heatindex_c', 0)),
+                'heatindex_f': str(weather_data['current'].get('heatindex_f', 0)),
+                'dewpoint_c': str(weather_data['current'].get('dewpoint_c', 0)),
+                'dewpoint_f': str(weather_data['current'].get('dewpoint_f', 0)),
+                'visibility_km': str(weather_data['current']['vis_km']),
+                'visibility_miles': str(weather_data['current']['vis_miles']),
+                'uv_index': str(weather_data['current']['uv']),
+                'gust_mph': str(weather_data['current']['gust_mph']),
+                'gust_kph': str(weather_data['current']['gust_kph']),
+                'inserted_at': datetime.utcnow().isoformat()                                #Store current UTC timestamp for insertion
+            }
+
+            # Insert into DynamoDB
+            table.put_item(Item=item)
+            print(f"Inserted {location} weather data into DynamoDB.")
+
+            # Upload to S3
+            s3.put_object(
+                Bucket=S3_BUCKET,
+                Key=f"weather_conditions_{location}_{timestamp}.json",
+                Body=json.dumps(weather_data),
+                ContentType='application/json'
+            )
+            print(f"Uploaded {location} weather data to S3.")
+
+            results.append({'location': location, 'status': 'success'})
+
+        return {
+            'statusCode': 200,
+            'body': json.dumps({
+                'message': 'Weather data for all locations saved successfully!',
+                'results': results
+            })
+        }
+
+    except Exception as e:
+        print(f"Error occurred: {e}")
+        return {
+            'statusCode': 500,
+            'body': json.dumps(f'Error: {str(e)}')
+            
+            
+            
+2nd lambda fn : 
+
+
+import boto3
+import json
+import os
+from datetime import datetime
+
+dynamodb = boto3.resource('dynamodb')
+s3 = boto3.client('s3')
+
+# Set your environment variables
+BUCKET_NAME = os.environ.get('S3_BUCKET', 'weatherdyn')
+TABLE_NAME = os.environ.get('DYNAMODB_TABLE', 'weatherdata')
+
+def lambda_handler(event, context):
+    records = event.get('Records', [])
+    if not records:
+        return {
+            'statusCode': 400,
+            'body': 'No Records found in event'
+        }
+
+    table = dynamodb.Table(TABLE_NAME)
+    processed_items = []
+
+    for record in records:                                                             # Loop over each stream record.
+        if record['eventName'] == 'INSERT':
+            new_image = record['dynamodb']['NewImage']
+            item = {k: list(v.values())[0] for k, v in new_image.items()}
+
+            # Build the new item by combining incoming data + your additional fields
+            new_item = {
+                'location_name': item.get('location_name', 'Unknown'),
+                'localtime': item.get('localtime', datetime.utcnow().isoformat()),     # must include localtime
+                'inserted_copy_time': datetime.utcnow().isoformat(),
+                'original_temp_c': item.get('temp_c', 0),
+                'original_humidity': item.get('humidity', 0),
+                # New fields based on your example
+                'dewpoint_c': item.get('dewpoint_c', ''),
+                'condition_text': item.get('condition_text', ''),
+                'pressure_mb': item.get('pressure_mb', ''),
+                'country': item.get('country', ''),
+                'cloud': item.get('cloud', ''),
+                'feelslike_f': item.get('feelslike_f', ''),
+                'uv_index': item.get('uv', ''),                                # assuming uv instead of uv_index field
+                'condition_icon': item.get('condition_icon', ''),
+                'wind_degree': item.get('wind_degree', ''),
+                'visibility_miles': item.get('vis_miles', ''),
+                'gust_mph': item.get('gust_mph', ''),
+                'wind_dir': item.get('wind_dir', ''),
+                'gust_kph': item.get('gust_kph', ''),
+                'condition_code': item.get('condition_code', ''),
+                'windchill_f': item.get('windchill_f', ''),
+                'pressure_in': item.get('pressure_in', ''),
+                'region': item.get('region', ''),
+                'feelslike_c': item.get('feelslike_c', ''),
+                'is_day': item.get('is_day', ''),
+                'latitude': item.get('lat', ''),
+                'temp_c': item.get('temp_c', ''),
+                'temp_f': item.get('temp_f', ''),
+                'windchill_c': item.get('windchill_c', ''),
+                'wind_kph': item.get('wind_kph', ''),
+                'wind_mph': item.get('wind_mph', ''),
+                'heatindex_f': item.get('heatindex_f', ''),
+                'precip_mm': item.get('precip_mm', ''),
+                'longitude': item.get('lon', ''),
+                'timezone': item.get('tz_id', ''),
+                'heatindex_c': item.get('heatindex_c', ''),
+                'visibility_km': item.get('vis_km', ''),
+                'dewpoint_f': item.get('dewpoint_f', ''),
+                'precip_in': item.get('precip_in', '')
+            }
+
+            # Insert the new item into DynamoDB
+            table.put_item(Item=new_item)
+
+            # Also upload original item to S3
+            timestamp = datetime.utcnow().isoformat()
+            file_name = f"dynamodb_record_{timestamp}.json"
+
+            s3.put_object(                                                  # Upload the original flattened item to S3
+                Bucket=BUCKET_NAME,
+                Key=file_name,
+                Body=json.dumps(item),
+                ContentType='application/json'
+            )
+
+            processed_items.append(new_item)
+
+    return {
+        'statusCode': 200,
+        'body': json.dumps({
+            'message': f'Processed {len(processed_items)} records',
+            'processed_data': processed_items
+        })
+    }
+    
+   
+  
+SNOWFLAKE QUERY: 
+
+
+CREATE WAREHOUSE weather_ware;                              # Create warehouse                                        
+USE WAREHOUSE weather_ware;                                 # Select and activate the warehouse 
+
+CREATE DATABASE weather_base;                               # Create database
+USE DATABASE weather_base;                                  # Switch to use the database
+
+CREATE SCHEMA weather_sch;                                  # Create a schema
+
+CREATE STORAGE INTEGRATION s3_weather                       # Create a storage integration object for external S3 access
+TYPE = EXTERNAL_STAGE
+STORAGE_PROVIDER = S3
+ENABLED = TRUE
+STORAGE_AWS_ROLE_ARN = 'arn:aws:iam::111122223333:role/fake-placeholder-role'
+STORAGE_ALLOWED_LOCATIONS = ('s3://weatherdyn/');           # Allow access only to `s3://weatherdyn/` bucket
+
+DESC INTEGRATION s3_weather;                                # Describe the details and security credentials of `s3_weather` 
+
+ALTER STORAGE INTEGRATION s3_weather                        # Update the integration to use the correct IAM role
+SET STORAGE_AWS_ROLE_ARN = 'arn:aws:iam::876186670521:role/snowflake_s3access';  # set the real iam role arn
+
+CREATE STAGE weather_stage                                  # Create an external stage
+STORAGE_INTEGRATION = s3_weather                            # Link the stage to integration 
+URL = 's3://weatherdyn/'
+FILE_FORMAT = (TYPE = JSON);
+
+LIST @weather_stage;                                       # List all files available in the S3 stage
+                              
+USE SCHEMA weather_sch;
+
+CREATE OR REPLACE TABLE weather_data (                    # Create or replace a table named `weather_data` with weather-related columns
+    location_name STRING,
+    "localtime" TIMESTAMP_NTZ,
+    inserted_copy_time TIMESTAMP_NTZ,
+    original_temp_c FLOAT,
+    original_humidity FLOAT,
+    dewpoint_c FLOAT,
+    condition_text STRING,
+    pressure_mb FLOAT,
+    country STRING,
+    cloud FLOAT,
+    feelslike_f FLOAT,
+    uv_index FLOAT,
+    condition_icon STRING,
+    wind_degree FLOAT,
+    visibility_miles FLOAT,
+    gust_mph FLOAT,
+    wind_dir STRING,
+    gust_kph FLOAT,
+    condition_code STRING,
+    windchill_f FLOAT,
+    pressure_in FLOAT,
+    region STRING,
+    feelslike_c FLOAT,
+    is_day BOOLEAN,
+    latitude FLOAT,
+    temp_c FLOAT,
+    temp_f FLOAT,
+    windchill_c FLOAT,
+    wind_kph FLOAT,
+    wind_mph FLOAT,
+    heatindex_f FLOAT,
+    precip_mm FLOAT,
+    longitude FLOAT,
+    timezone STRING,
+    heatindex_c FLOAT,
+    visibility_km FLOAT,
+    dewpoint_f FLOAT,
+    precip_in FLOAT
+);
+
+CREATE OR REPLACE PIPE weather_pipe                         # Create or replace a Snowpipe
+AUTO_INGEST = TRUE
+AS
+COPY INTO weather_data                                      # Define COPY INTO command to load data into `weather_data` table
+FROM @weather_stage                                         # Source from 'weather_stage'
+FILE_FORMAT = (TYPE = 'JSON')
+MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE;                    # Match JSON keys to table columns case-insensitively
+
+
+ALTER PIPE WEATHER_PIPE SET PIPE_EXECUTION_PAUSED=true;     # Pause the Snowpipe temporarily
+
+
+GRANT OWNERSHIP ON PIPE weather_pipe TO ROLE SYSADMIN;      # Grant ownership of the pipe to SYSADMIN role
+
+
+ALTER PIPE weather_pipe REFRESH;                            # Manually refresh the pipe to recognize existing files in S3 stage
+
+
+CREATE OR REPLACE FILE FORMAT weather_json                  # Create or replace a named file format 
+TYPE = 'JSON'
+STRIP_NULL_VALUES = TRUE                                    # Remove null values from JSON objects on load
+IGNORE_UTF8_ERRORS = TRUE;                                  # Ignore invalid UTF-8 characters during load
+
+
+COPY INTO weather_data                                      # Manually load data into `weather_data` table (outside of Snowpipe)
+FROM @weather_stage
+FILE_FORMAT = (FORMAT_NAME = 'weather_json')
+MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE;
+
+SELECT * FROM weather_data;                                 # Query all records from `weather_data` table to verify load
