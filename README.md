@@ -33,6 +33,7 @@ External Stage: Snowflake uses this to access data stored in S3.
 Snowpipe: Automatically loads new data from S3 into SnowflakeDB using notifications from SQS.
 
 -- Data Visualization -----
+![image](https://github.com/user-attachments/assets/db0b51c1-84f6-417f-b824-d9584971730e)
 SnowflakeDB: Stores curated weather data.
 Power BI: Connects to Snowflake to create dashboards and visualize weather trends.
 
