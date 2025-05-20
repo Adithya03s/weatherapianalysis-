@@ -1,6 +1,6 @@
 # weatherapianalysis 🌦️
 
-This project collects real-time weather data from OpenWeather API, stores it in AWS DynamoDB and S3, and ingests it into Snowflake using Snowpipe.
+This project collects real-time weather data from OpenWeather API, stores it in AWS DynamoDB and S3, and ingests it into Snowflake using Snowpipe. And by using Power BI connect to Snowflake to create dashboards and visualize weather trends. 
 
 ## 🔧 Technologies Used
 - AWS Lambda
