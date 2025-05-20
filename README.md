@@ -22,6 +22,7 @@ This project collects real-time weather data from OpenWeather API, stores it in 
 
 ⚡ Lambda Function → Parses data and writes to dynamodb and s3 bucket.
 
+
 🔄 Data Processing
 
 🌀 DynamoDB Stream → Detects table changes → Triggers Lambda.
