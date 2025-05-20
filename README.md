@@ -14,27 +14,39 @@ This project collects real-time weather data from OpenWeather API, stores it in 
 
 ![Architecture Diagram](archweatherapi.jpeg)
 
--- Data Ingestion Flow --------
-OpenWeather API: Periodically fetches weather data.
-EventBridge: Triggers a Lambda function when new data is available.
-Lambda Function: Parses the data and writes it to DynamoDB and S3.
+🔄 Data Ingestion Flow
 
--- Data Processing -----
-DynamoDB Stream: Detects changes in the table and triggers another Lambda.
-Lambda: Can enrich, transform, or forward the data.
-S3 to SQS: S3 sends an event notification to SQS upon new file uploads.
+🌤 OpenWeather API → Periodically fetches weather data.
 
--- Secure Data Integration -----
-IAM: Provides role-based secure access to S3 buckets.
-Storage Integration: Facilitates trusted access between AWS and Snowflake.
+⏰ EventBridge → Triggers Lambda when new data is available.
 
--- Snowflake Integration -----
-External Stage: Snowflake uses this to access data stored in S3.
-Snowpipe: Automatically loads new data from S3 into SnowflakeDB using notifications from SQS.
+⚡ Lambda Function → Parses data and writes to dynamodb and s3 bucket.
 
--- Data Visualization -----
-SnowflakeDB: Stores curated weather data.
-Power BI: Connects to Snowflake to create dashboards and visualize weather trends.
+🔄 Data Processing
+
+🌀 DynamoDB Stream → Detects table changes → Triggers Lambda.
+
+⚡ Lambda (2nd) → Enriches/transforms data → Writes back to S3.
+
+📤  S3 to SQS → Sends alerts to SQS for new files.
+
+🔄 Secure Data Integration
+
+🔐 IAM Roles → Grants secure access to S3 & DynamoDB.
+
+🤝 Storage Integration → Trusted link between AWS & Snowflake.
+
+🔄 Snowflake Integration
+
+❄️ External Stage → Snowflake reads directly from S3.
+
+📥 Snowpipe → Auto-ingests data via SQS notifications.
+
+🔄 Data Visualization
+
+❄️ SnowflakeDB → Stores processed, query-ready data.
+
+📊 Power BI → Pulls data from Snowflake → Generates dashboards & reports.
 
 
 ## 📁 Files
