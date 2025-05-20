@@ -14,7 +14,7 @@ This project collects real-time weather data from OpenWeather API, stores it in 
 
 ![Architecture Diagram](archweatherapi.jpeg)
 
-🔄 Data Ingestion Flow
+## Data Ingestion Flow
 
 🌤 OpenWeather API → Periodically fetches weather data.
 
@@ -23,7 +23,7 @@ This project collects real-time weather data from OpenWeather API, stores it in 
 ⚡ Lambda Function → Parses data and writes to dynamodb and s3 bucket.
 
 
-🔄 Data Processing
+## Data Processing
 
 🌀 DynamoDB Stream → Detects table changes → Triggers Lambda.
 
@@ -31,19 +31,19 @@ This project collects real-time weather data from OpenWeather API, stores it in 
 
 📤  S3 to SQS → Sends alerts to SQS for new files.
 
-🔄 Secure Data Integration
+## Secure Data Integration
 
 🔐 IAM Roles → Grants secure access to S3 & DynamoDB.
 
 🤝 Storage Integration → Trusted link between AWS & Snowflake.
 
-🔄 Snowflake Integration
+## Snowflake Integration
 
 ❄️ External Stage → Snowflake reads directly from S3.
 
 📥 Snowpipe → Auto-ingests data via SQS notifications.
 
-🔄 Data Visualization
+## Data Visualization
 
 ❄️ SnowflakeDB → Stores processed, query-ready data.
 
